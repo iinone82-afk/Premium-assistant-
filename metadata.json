@@ -1,0 +1,6 @@
+{
+  "name": "Professional Email & Gmail Reply Assistant",
+  "description": "AI-powered expertise assistant to draft concise, high-impact, context-aware email and Gmail responses.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
