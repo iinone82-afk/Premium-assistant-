@@ -1,93 +1,45 @@
-export type ReplyIntent = 
-  | 'confirm' 
-  | 'decline' 
-  | 'clarify' 
-  | 'reschedule' 
-  | 'update' 
-  | 'executive' 
-  | 'custom';
+export type TimerMode = 'pomodoro' | 'short_break' | 'long_break' | 'custom' | 'stopwatch';
 
-export type ToneStyle = 
-  | 'executive' 
-  | 'formal' 
-  | 'warm' 
-  | 'assertive' 
-  | 'brevity';
+export type CatMood = 'idle' | 'focusing' | 'celebrating' | 'sleeping' | 'happy';
 
-export type LengthStyle = 
-  | 'short' 
-  | 'medium' 
-  | 'bullets';
-
-export interface SenderPersona {
+export interface HatItem {
+  id: string;
   name: string;
-  title: string;
-  company: string;
-  signature?: string;
+  description: string;
+  emoji: string;
+  price: number; // Always 60 coins
+  category: 'cute' | 'fancy' | 'silly' | 'seasonal';
+  color: string;
 }
 
-export interface EmailAnalysis {
-  detectedSender: string;
-  detectedRecipient: string;
-  detectedSubject: string;
-  detectedUrgency: 'low' | 'normal' | 'high' | 'critical';
-  detectedTone: string;
-  coreQuestions: string[];
-  actionItems: string[];
-  strategicAdvice: string;
-}
-
-export interface DraftResponse {
+export interface CalendarEvent {
   id: string;
   title: string;
-  subject: string;
-  body: string;
-  rationale: string;
-  keyStrength: string;
-  wordCount: number;
-  readTimeSeconds: number;
-  tags?: string[];
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:mm
+  durationMinutes: number;
+  category: 'study' | 'work' | 'reading' | 'workout' | 'chores' | 'wellness';
+  completed?: boolean;
+  notes?: string;
+  coinsEarned?: number;
 }
 
-export interface GenerateReplyRequest {
-  emailContent: string;
-  subject?: string;
-  sender?: string;
-  intent: ReplyIntent;
-  customKeyPoints?: string;
-  tone: ToneStyle;
-  length: LengthStyle;
-  persona?: SenderPersona;
-}
-
-export interface GenerateReplyResponse {
-  analysis: EmailAnalysis;
-  drafts: DraftResponse[];
-}
-
-export interface RefineReplyRequest {
-  originalEmail: string;
-  currentDraft: DraftResponse;
-  instruction: string;
-  tone?: ToneStyle;
-  length?: LengthStyle;
-}
-
-export interface RefineReplyResponse {
-  draft: DraftResponse;
-  changesSummary: string;
-}
-
-export interface EmailTemplate {
+export interface FocusSessionLog {
   id: string;
-  category: string;
+  timestamp: number;
+  date: string; // YYYY-MM-DD
   title: string;
-  sender: string;
-  subject: string;
-  content: string;
-  suggestedIntent: ReplyIntent;
-  suggestedTone: ToneStyle;
-  suggestedPoints: string;
-  initialDrafts?: DraftResponse[];
-  initialAnalysis?: EmailAnalysis;
+  durationMinutes: number;
+  coinsEarned: number;
+  mode: TimerMode;
+}
+
+export interface AppSettings {
+  soundEnabled: boolean;
+  pomodoroMinutes: number;
+  shortBreakMinutes: number;
+  longBreakMinutes: number;
+  autoStartBreaks: boolean;
+  autoStartPomodoros: boolean;
+  catName: string;
 }

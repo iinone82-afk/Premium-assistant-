@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fed7aa"/>
+      <stop offset="100%" stop-color="#fdba74"/>
+    </linearGradient>
+    <linearGradient id="catGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#fffbeb"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#ea580c" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)"/>
+  
+  <!-- Outer Ring (Timer Motif) -->
+  <circle cx="256" cy="256" r="210" fill="none" stroke="#fb923c" stroke-width="8" stroke-dasharray="16 12" opacity="0.6"/>
+
+  <g filter="url(#shadow)">
+    <!-- Cat Ears -->
+    <path d="M150 190 L110 85 L215 140 Z" fill="#ffffff" stroke="#f97316" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M145 175 L125 105 L195 145 Z" fill="#fbcfe8"/>
+    
+    <path d="M362 190 L402 85 L297 140 Z" fill="#ffffff" stroke="#f97316" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M367 175 L387 105 L317 145 Z" fill="#fbcfe8"/>
+
+    <!-- Cat Head -->
+    <ellipse cx="256" cy="270" rx="160" ry="135" fill="url(#catGrad)" stroke="#f97316" stroke-width="8"/>
+
+    <!-- Cute Calico Patches -->
+    <path d="M120 230 Q 150 200 200 210 Q 170 280 115 270 Z" fill="#fb923c" opacity="0.85"/>
+    <path d="M380 220 Q 330 200 320 250 Q 370 280 395 240 Z" fill="#f472b6" opacity="0.7"/>
+
+    <!-- Eyes (Happy curved or big anime eyes) -->
+    <ellipse cx="195" cy="265" rx="16" ry="20" fill="#1c1917"/>
+    <circle cx="201" cy="257" r="7" fill="#ffffff"/>
+    <circle cx="190" cy="273" r="3" fill="#ffffff"/>
+
+    <ellipse cx="317" cy="265" rx="16" ry="20" fill="#1c1917"/>
+    <circle cx="323" cy="257" r="7" fill="#ffffff"/>
+    <circle cx="312" cy="273" r="3" fill="#ffffff"/>
+
+    <!-- Blush Cheeks -->
+    <ellipse cx="160" cy="290" rx="22" ry="14" fill="#fda4af" opacity="0.8"/>
+    <ellipse cx="352" cy="290" rx="22" ry="14" fill="#fda4af" opacity="0.8"/>
+
+    <!-- Nose and Mouth -->
+    <polygon points="256,282 248,272 264,272" fill="#fb7185"/>
+    <path d="M246 288 Q 256 298 256 284 Q 256 298 266 288" fill="none" stroke="#1c1917" stroke-width="5" stroke-linecap="round"/>
+
+    <!-- Whiskers -->
+    <line x1="140" y1="275" x2="80" y2="265" stroke="#1c1917" stroke-width="4" stroke-linecap="round"/>
+    <line x1="140" y1="290" x2="75" y2="295" stroke="#1c1917" stroke-width="4" stroke-linecap="round"/>
+    <line x1="372" y1="275" x2="432" y2="265" stroke="#1c1917" stroke-width="4" stroke-linecap="round"/>
+    <line x1="372" y1="290" x2="437" y2="295" stroke="#1c1917" stroke-width="4" stroke-linecap="round"/>
+
+    <!-- Golden Coin on collar -->
+    <circle cx="256" cy="385" r="32" fill="#fbbf24" stroke="#d97706" stroke-width="5"/>
+    <text x="256" y="396" font-family="'Fredoka', sans-serif" font-weight="bold" font-size="28" fill="#78350f" text-anchor="middle">🪙</text>
+  </g>
+</svg>

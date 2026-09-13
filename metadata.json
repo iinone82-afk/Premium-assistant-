@@ -1,6 +1,6 @@
 {
-  "name": "Professional Email & Gmail Reply Assistant",
-  "description": "AI-powered expertise assistant to draft concise, high-impact, context-aware email and Gmail responses.",
+  "name": "NekoTimer: Cat Timer & Calendar",
+  "description": "A cute cartoon cat-themed Android timer and calendar app featuring Pomodoro focus intervals, coin rewards every 10 minutes, and a hat shop.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

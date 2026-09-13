@@ -4,307 +4,345 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Header } from './components/Header';
-import { EmailInputPanel } from './components/EmailInputPanel';
-import { DraftWorkbench } from './components/DraftWorkbench';
-import { ContextAnalysisCard } from './components/ContextAnalysisCard';
-import { PersonaModal } from './components/PersonaModal';
-import { GuideModal } from './components/GuideModal';
-import { 
-  ReplyIntent, 
-  ToneStyle, 
-  LengthStyle, 
-  SenderPersona, 
-  EmailAnalysis, 
-  DraftResponse,
-  EmailTemplate 
-} from './types';
-import { SAMPLE_EMAILS } from './data/sampleEmails';
-import { AlertCircle, CheckCircle2, Sparkles, X } from 'lucide-react';
+import { AndroidFrame } from './components/AndroidFrame';
+import { TopBar } from './components/TopBar';
+import { BottomNav, NavTab } from './components/BottomNav';
+import { TimerTab } from './components/TimerTab';
+import { CalendarTab } from './components/CalendarTab';
+import { ShopTab } from './components/ShopTab';
+import { CatRoomTab } from './components/CatRoomTab';
+import { CoinRewardBanner } from './components/CoinRewardBanner';
+import { CalendarEvent, FocusSessionLog, HatItem, TimerMode } from './types';
+import { playClickSound, playCoinSound } from './utils/audio';
 
-const DEFAULT_PERSONA: SenderPersona = {
-  name: 'Alex Morgan',
-  title: 'Operations Director',
-  company: 'Vanguard Systems',
-  signature: 'Best regards,\nAlex Morgan | Vanguard Systems',
-};
+// Friendly starter calendar events
+const INITIAL_EVENTS: CalendarEvent[] = [
+  {
+    id: 'evt-1',
+    title: 'Math Study & Practice Problems',
+    date: new Date().toISOString().split('T')[0],
+    startTime: '10:00',
+    durationMinutes: 25,
+    category: 'study',
+    completed: false,
+  },
+  {
+    id: 'evt-2',
+    title: 'Read 20 Pages of Novel',
+    date: new Date().toISOString().split('T')[0],
+    startTime: '14:30',
+    durationMinutes: 20,
+    category: 'reading',
+    completed: false,
+  },
+  {
+    id: 'evt-3',
+    title: 'Quick Room Tidy & Water Plants',
+    date: new Date().toISOString().split('T')[0],
+    startTime: '17:00',
+    durationMinutes: 10,
+    category: 'chores',
+    completed: false,
+  },
+];
 
 export default function App() {
-  // State
-  const [emailContent, setEmailContent] = useState<string>(SAMPLE_EMAILS[0].content);
-  const [intent, setIntent] = useState<ReplyIntent>('reschedule');
-  const [tone, setTone] = useState<ToneStyle>('assertive');
-  const [length, setLength] = useState<LengthStyle>('short');
-  const [customKeyPoints, setCustomKeyPoints] = useState<string>(SAMPLE_EMAILS[0].suggestedPoints);
-  
-  const [persona, setPersona] = useState<SenderPersona>(() => {
-    try {
-      const saved = localStorage.getItem('user_sender_persona');
-      return saved ? JSON.parse(saved) : DEFAULT_PERSONA;
-    } catch {
-      return DEFAULT_PERSONA;
-    }
+  // Active Tab
+  const [activeTab, setActiveTab] = useState<NavTab>('timer');
+
+  // Coin Balance: Starter gift of 60 coins so user can immediately buy their first custom hat!
+  const [coins, setCoins] = useState<number>(() => {
+    const saved = localStorage.getItem('nekotimer_coins');
+    return saved !== null ? parseInt(saved, 10) : 60;
   });
 
-  const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
-  const [isGuideModalOpen, setIsGuideModalOpen] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isRefining, setIsRefining] = useState(false);
-  
-  const [analysis, setAnalysis] = useState<EmailAnalysis | null>(SAMPLE_EMAILS[0].initialAnalysis || null);
-  const [drafts, setDrafts] = useState<DraftResponse[]>(SAMPLE_EMAILS[0].initialDrafts || []);
-  const [activeDraftIndex, setActiveDraftIndex] = useState(0);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successNotice, setSuccessNotice] = useState<string | null>(null);
+  // Owned Hats list
+  const [ownedHatIds, setOwnedHatIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem('nekotimer_owned_hats');
+    return saved ? JSON.parse(saved) : [];
+  });
 
-  const extractErrorMessage = (err: any): string => {
-    if (!err) return 'An unexpected error occurred.';
-    const raw = typeof err === 'string' ? err : err.message || '';
-    try {
-      const parsed = JSON.parse(raw);
-      if (parsed.error?.message) return parsed.error.message;
-      if (parsed.message) return parsed.message;
-    } catch {}
-    if (raw.includes('quota') || raw.includes('429')) {
-      return 'AI model quota temporarily reached. Please wait a few moments or use the instant smart drafts.';
-    }
-    if (raw.includes('503') || raw.includes('high demand')) {
-      return 'Gemini AI is experiencing high demand. Using smart executive draft engine.';
-    }
-    return raw || 'Unable to complete request. Please try again.';
-  };
+  // Equipped Hat
+  const [equippedHatId, setEquippedHatId] = useState<string | null>(() => {
+    const saved = localStorage.getItem('nekotimer_equipped_hat');
+    return saved !== null ? saved : null;
+  });
 
-  // Persist persona
-  const handleSavePersona = (updated: SenderPersona) => {
-    setPersona(updated);
-    try {
-      localStorage.setItem('user_sender_persona', JSON.stringify(updated));
-    } catch (e) {
-      console.warn('Failed to persist persona in localStorage', e);
-    }
-    setSuccessNotice('Sender profile updated.');
-    setTimeout(() => setSuccessNotice(null), 3000);
-  };
+  // Sound effects toggle
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('nekotimer_sound');
+    return saved !== null ? saved === 'true' : true;
+  });
 
-  // Load a scenario template
-  const handleLoadTemplate = (tpl: EmailTemplate) => {
-    setEmailContent(tpl.content);
-    setIntent(tpl.suggestedIntent);
-    setTone(tpl.suggestedTone);
-    setCustomKeyPoints(tpl.suggestedPoints);
-    if (tpl.initialDrafts && tpl.initialDrafts.length > 0) {
-      setDrafts(tpl.initialDrafts);
-      setAnalysis(tpl.initialAnalysis || null);
-      setActiveDraftIndex(0);
+  // Cat custom name
+  const [catName, setCatName] = useState<string>(() => {
+    const saved = localStorage.getItem('nekotimer_cat_name');
+    return saved || 'Mochi';
+  });
+
+  // Calendar Events
+  const [events, setEvents] = useState<CalendarEvent[]>(() => {
+    const saved = localStorage.getItem('nekotimer_events');
+    return saved ? JSON.parse(saved) : INITIAL_EVENTS;
+  });
+
+  // Focus Session History Logs
+  const [focusLogs, setFocusLogs] = useState<FocusSessionLog[]>(() => {
+    const saved = localStorage.getItem('nekotimer_focus_logs');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Active Task Title currently being worked on in the Timer
+  const [activeTaskTitle, setActiveTaskTitle] = useState<string>('Focus & Earn Coins 🐾');
+
+  // Stats
+  const [totalFocusMinutes, setTotalFocusMinutes] = useState<number>(() => {
+    const saved = localStorage.getItem('nekotimer_total_mins');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+
+  const [totalSessionsCompleted, setTotalSessionsCompleted] = useState<number>(() => {
+    const saved = localStorage.getItem('nekotimer_total_sessions');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+
+  // Coin Reward Banner popup state
+  const [rewardBanner, setRewardBanner] = useState<{
+    show: boolean;
+    amount: number;
+    message: string;
+  }>({
+    show: false,
+    amount: 10,
+    message: '10 Minutes of Focus Completed!',
+  });
+
+  // Persistence effects
+  useEffect(() => {
+    localStorage.setItem('nekotimer_coins', coins.toString());
+  }, [coins]);
+
+  useEffect(() => {
+    localStorage.setItem('nekotimer_owned_hats', JSON.stringify(ownedHatIds));
+  }, [ownedHatIds]);
+
+  useEffect(() => {
+    if (equippedHatId !== null) {
+      localStorage.setItem('nekotimer_equipped_hat', equippedHatId);
     } else {
-      setDrafts([]);
-      setAnalysis(null);
+      localStorage.removeItem('nekotimer_equipped_hat');
     }
-    setErrorMessage(null);
+  }, [equippedHatId]);
+
+  useEffect(() => {
+    localStorage.setItem('nekotimer_sound', soundEnabled.toString());
+  }, [soundEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('nekotimer_cat_name', catName);
+  }, [catName]);
+
+  useEffect(() => {
+    localStorage.setItem('nekotimer_events', JSON.stringify(events));
+  }, [events]);
+
+  useEffect(() => {
+    localStorage.setItem('nekotimer_focus_logs', JSON.stringify(focusLogs));
+  }, [focusLogs]);
+
+  useEffect(() => {
+    localStorage.setItem('nekotimer_total_mins', totalFocusMinutes.toString());
+  }, [totalFocusMinutes]);
+
+  useEffect(() => {
+    localStorage.setItem('nekotimer_total_sessions', totalSessionsCompleted.toString());
+  }, [totalSessionsCompleted]);
+
+  // Handler: Award coins (from 10-min timer interval)
+  const handleEarnCoins = (amount: number, reason: string) => {
+    setCoins((prev) => prev + amount);
+    setRewardBanner({
+      show: true,
+      amount,
+      message: reason,
+    });
   };
 
-  // Generate replies via Gemini backend
-  const handleGenerateReplies = async () => {
-    if (!emailContent.trim()) return;
-
-    setIsGenerating(true);
-    setErrorMessage(null);
-
-    try {
-      const response = await fetch('/api/generate-reply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          emailContent,
-          intent,
-          tone,
-          length,
-          customKeyPoints,
-          persona,
-        }),
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || `Server responded with status ${response.status}`);
-      }
-
-      const data = await response.json();
-      setAnalysis(data.analysis || null);
-      setDrafts(data.drafts || []);
-      setActiveDraftIndex(0);
-      setSuccessNotice('Drafts ready.');
-      setTimeout(() => setSuccessNotice(null), 3000);
-    } catch (err: any) {
-      console.error('Error generating replies:', err);
-      setErrorMessage(extractErrorMessage(err));
-    } finally {
-      setIsGenerating(false);
-    }
+  // Handler: Buy a Hat in the shop for 60 coins
+  const handleBuyHat = (hat: HatItem) => {
+    if (coins < hat.price) return;
+    setCoins((prev) => prev - hat.price);
+    setOwnedHatIds((prev) => {
+      if (prev.includes(hat.id)) return prev;
+      return [...prev, hat.id];
+    });
+    setEquippedHatId(hat.id);
   };
 
-  // Refine an existing draft via Gemini backend
-  const handleRefineDraft = async (instruction: string) => {
-    if (!drafts[activeDraftIndex] || !instruction.trim()) return;
-
-    setIsRefining(true);
-    setErrorMessage(null);
-
-    try {
-      const current = drafts[activeDraftIndex];
-      const response = await fetch('/api/refine-reply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          originalEmail: emailContent,
-          currentDraft: current,
-          instruction,
-          tone,
-          length,
-        }),
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || `Refine failed with status ${response.status}`);
-      }
-
-      const data = await response.json();
-      const updatedDrafts = [...drafts];
-      updatedDrafts[activeDraftIndex] = data.draft;
-      setDrafts(updatedDrafts);
-      setSuccessNotice(data.changesSummary || 'Draft refined successfully.');
-      setTimeout(() => setSuccessNotice(null), 3500);
-    } catch (err: any) {
-      console.error('Error refining draft:', err);
-      setErrorMessage(extractErrorMessage(err));
-    } finally {
-      setIsRefining(false);
-    }
+  // Handler: Equip / Unequip a hat
+  const handleEquipHat = (hatId: string | null) => {
+    setEquippedHatId(hatId);
   };
 
-  // Direct manual edits on draft body and subject
-  const handleUpdateDraftBody = (draftId: string, newBody: string, newSubject: string) => {
-    setDrafts((prev) =>
-      prev.map((d) => {
-        if (d.id === draftId) {
-          const words = newBody.trim().split(/\s+/).filter(Boolean).length;
-          return {
-            ...d,
-            body: newBody,
-            subject: newSubject,
-            wordCount: words,
-            readTimeSeconds: Math.max(5, Math.ceil((words / 220) * 60)),
-          };
-        }
-        return d;
-      })
+  // Handler: Timer Session Finished
+  const handleSessionComplete = (
+    durationMinutes: number,
+    title: string,
+    coinsEarned: number,
+    mode: TimerMode
+  ) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const newLog: FocusSessionLog = {
+      id: `log-${Date.now()}`,
+      timestamp: Date.now(),
+      date: todayStr,
+      title,
+      durationMinutes,
+      coinsEarned,
+      mode,
+    };
+
+    setFocusLogs((prev) => [newLog, ...prev]);
+    setTotalFocusMinutes((prev) => prev + durationMinutes);
+    setTotalSessionsCompleted((prev) => prev + 1);
+
+    // Also mark matching event as completed if present
+    setEvents((prev) =>
+      prev.map((evt) =>
+        evt.title.toLowerCase() === title.toLowerCase() && evt.date === todayStr
+          ? { ...evt, completed: true }
+          : evt
+      )
     );
   };
 
+  // Handler: Add Calendar Event
+  const handleAddEvent = (eventData: Omit<CalendarEvent, 'id'>) => {
+    const newEvent: CalendarEvent = {
+      ...eventData,
+      id: `evt-${Date.now()}`,
+    };
+    setEvents((prev) => [...prev, newEvent]);
+  };
+
+  // Handler: Delete Calendar Event
+  const handleDeleteEvent = (id: string) => {
+    playClickSound(soundEnabled);
+    setEvents((prev) => prev.filter((e) => e.id !== id));
+  };
+
+  // Handler: Toggle Event Complete
+  const handleToggleEventComplete = (id: string) => {
+    playClickSound(soundEnabled);
+    setEvents((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, completed: !e.completed } : e))
+    );
+  };
+
+  // Handler: Start Timer for an Event
+  const handleStartTimerForEvent = (event: CalendarEvent) => {
+    playClickSound(soundEnabled);
+    setActiveTaskTitle(event.title);
+    setActiveTab('timer');
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col selection:bg-indigo-500 selection:text-white">
-      {/* Navbar Header */}
-      <Header
-        persona={persona}
-        onOpenPersonaModal={() => setIsPersonaModalOpen(true)}
-        onOpenGuideModal={() => setIsGuideModalOpen(true)}
+    <AndroidFrame>
+      {/* Coin Reward Banner */}
+      <CoinRewardBanner
+        show={rewardBanner.show}
+        coinsEarned={rewardBanner.amount}
+        message={rewardBanner.message}
+        soundEnabled={soundEnabled}
+        onClose={() => setRewardBanner((prev) => ({ ...prev, show: false }))}
       />
 
-      {/* Main Workspace Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Toast / Notification Banner */}
-        {errorMessage && (
-          <div 
-            id="error-banner"
-            className="mb-4 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs sm:text-sm text-rose-800 flex items-start justify-between shadow-2xs"
-          >
-            <div className="flex items-center space-x-2">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-              <span>{errorMessage}</span>
-            </div>
-            <button
-              onClick={() => setErrorMessage(null)}
-              className="text-rose-400 hover:text-rose-600 p-1"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
+      {/* Android Top App Header */}
+      <TopBar
+        coins={coins}
+        soundEnabled={soundEnabled}
+        onToggleSound={() => setSoundEnabled(!soundEnabled)}
+        onOpenShop={() => {
+          playClickSound(soundEnabled);
+          setActiveTab('shop');
+        }}
+      />
+
+      {/* Main Screen Content based on Active Tab */}
+      <main className="flex-1 flex flex-col overflow-y-auto">
+        {activeTab === 'timer' && (
+          <TimerTab
+            equippedHatId={equippedHatId}
+            soundEnabled={soundEnabled}
+            activeTaskTitle={activeTaskTitle}
+            setActiveTaskTitle={setActiveTaskTitle}
+            onEarnCoins={handleEarnCoins}
+            onSessionComplete={handleSessionComplete}
+            pomodoroMinutes={25}
+            shortBreakMinutes={5}
+            longBreakMinutes={15}
+            onOpenShop={() => {
+              playClickSound(soundEnabled);
+              setActiveTab('shop');
+            }}
+          />
         )}
 
-        {successNotice && (
-          <div 
-            id="success-banner"
-            className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center justify-between shadow-2xs animate-in fade-in"
-          >
-            <div className="flex items-center space-x-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span className="font-medium">{successNotice}</span>
-            </div>
-            <button
-              onClick={() => setSuccessNotice(null)}
-              className="text-emerald-500 hover:text-emerald-700 p-1"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
+        {activeTab === 'calendar' && (
+          <CalendarTab
+            events={events}
+            focusLogs={focusLogs}
+            soundEnabled={soundEnabled}
+            onAddEvent={handleAddEvent}
+            onDeleteEvent={handleDeleteEvent}
+            onToggleEventComplete={handleToggleEventComplete}
+            onStartTimerForEvent={handleStartTimerForEvent}
+          />
         )}
 
-        {/* 2-Column Responsive Workspace Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column: Context Input & Intent Config */}
-          <div className="lg:col-span-5 space-y-4">
-            <EmailInputPanel
-              emailContent={emailContent}
-              onEmailContentChange={setEmailContent}
-              intent={intent}
-              onIntentChange={setIntent}
-              tone={tone}
-              onToneChange={setTone}
-              length={length}
-              onLengthChange={setLength}
-              customKeyPoints={customKeyPoints}
-              onCustomKeyPointsChange={setCustomKeyPoints}
-              onGenerateReplies={handleGenerateReplies}
-              isGenerating={isGenerating}
-              onLoadTemplate={handleLoadTemplate}
-            />
+        {activeTab === 'shop' && (
+          <ShopTab
+            coins={coins}
+            ownedHatIds={ownedHatIds}
+            equippedHatId={equippedHatId}
+            soundEnabled={soundEnabled}
+            onBuyHat={handleBuyHat}
+            onEquipHat={handleEquipHat}
+            onGoToTimer={() => {
+              playClickSound(soundEnabled);
+              setActiveTab('timer');
+            }}
+          />
+        )}
 
-            {/* Context Intelligence Card */}
-            <ContextAnalysisCard
-              analysis={analysis}
-              isLoading={isGenerating}
-            />
-          </div>
-
-          {/* Right Column: Draft Workbench & Gmail Actions */}
-          <div className="lg:col-span-7 sticky top-20">
-            <DraftWorkbench
-              drafts={drafts}
-              activeDraftIndex={activeDraftIndex}
-              onSelectDraftIndex={setActiveDraftIndex}
-              analysis={analysis}
-              onUpdateDraftBody={handleUpdateDraftBody}
-              onRefineDraft={handleRefineDraft}
-              isRefining={isRefining}
-            />
-          </div>
-        </div>
+        {activeTab === 'cat' && (
+          <CatRoomTab
+            catName={catName}
+            setCatName={setCatName}
+            coins={coins}
+            ownedHatIds={ownedHatIds}
+            equippedHatId={equippedHatId}
+            soundEnabled={soundEnabled}
+            totalFocusMinutes={totalFocusMinutes}
+            totalSessionsCompleted={totalSessionsCompleted}
+            onEquipHat={handleEquipHat}
+            onOpenShop={() => {
+              playClickSound(soundEnabled);
+              setActiveTab('shop');
+            }}
+          />
+        )}
       </main>
 
-      {/* Sender Persona Modal */}
-      <PersonaModal
-        isOpen={isPersonaModalOpen}
-        onClose={() => setIsPersonaModalOpen(false)}
-        persona={persona}
-        onSave={handleSavePersona}
+      {/* Android Bottom Navigation */}
+      <BottomNav
+        activeTab={activeTab}
+        onSelectTab={(tab) => {
+          playClickSound(soundEnabled);
+          setActiveTab(tab);
+        }}
+        hatCount={ownedHatIds.length}
       />
-
-      {/* Executive Guidelines Modal */}
-      <GuideModal
-        isOpen={isGuideModalOpen}
-        onClose={() => setIsGuideModalOpen(false)}
-      />
-    </div>
+    </AndroidFrame>
   );
 }
